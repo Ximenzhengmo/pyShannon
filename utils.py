@@ -3,10 +3,15 @@ import functools
 import warnings
 from _thread import RLock
 
+warnings.filterwarnings("default")
+
 __float_dtype__ = np.float32  # Default float type for numpy arrays
-__check_cache_size__ = 16
+__check_cache_size__ = 16  # Default cache size for the decorator
 
 def check_cache(func):
+    r"""
+    A decorator to cache the results of a function. The cache is cleared when the size exceeds __check_cache_size__.
+    """
     cache_dict = {}
     lock = RLock()
     @functools.wraps(func)
@@ -18,6 +23,7 @@ def check_cache(func):
             if key in cache_dict:
                 return cache_dict[key]
         result = func(*args, **kwargs)
+        clear_cache()
         with lock:
             cache_dict[key] = result
         return result
@@ -69,7 +75,7 @@ def self_information(p):
     - p(x|y) -> I(x|y) = -log2(p(x|y))
     
     Parameters:
-        p (array_like): Probability of the event.
+        p (array_like vector): Probability of the event.
 
     Returns:
         array_like: Self-information of the event.
@@ -92,8 +98,8 @@ def mutual_information(px, px_y):
     - p(x|z), p(x|y,z) -> I(x; y|z) = -log2(p(x|z)) - log2(p(x|y,z))
 
     Parameters:
-        px   (array_like): Probability of the event x - p(x).
-        px_y (array_like): Probability of the event x given y  p(x|y).
+        px   (array_like vector): Probability of the event x - p(x).
+        px_y (array_like vector): Probability of the event x given y  p(x|y).
 
     Returns:
         array_like: Self-information of the event.
@@ -109,8 +115,8 @@ def Entropy(p, pXY=None):
     - conditional-entropy : p(X|Y), pXY=p(XY) -> H(X|Y) = -sum(p(XY) * log2(p(X|Y)))
         
     Parameters:
-        p (array_like): Probability distribution.
-        pXY (array_like, optional): joint-prob p(XY), used for assigning weight for I(x|y) (for conditional-entropy or joint-entropy). If None, uses p as pXY (for entropy or joint-entropy).
+        p (array_like vector): Probability distribution.
+        pXY (array_like vector, optional): joint-prob p(XY), used for assigning weight for I(x|y) (for conditional-entropy or joint-entropy). If None, uses p as pXY (for entropy or joint-entropy).
 
     Returns:
         float: Entropy of the distribution H(X) or H(XY) or H(X|Y).
@@ -131,7 +137,7 @@ def Entropy(p, pXY=None):
 
     assert _prob_dstrbt_check(pXY), "Probabilities `pXY` must be in the range [0, 1] and sum(pXY) = 1."
 
-    return -np.dot( self_information(p),  pXY )
+    return np.dot( self_information(p),  pXY )
 
 
 def mean_contitional_mutial_information(pX, pX_y):
@@ -140,8 +146,8 @@ def mean_contitional_mutial_information(pX, pX_y):
     - pX, pX_y -> I(X; y) = sum_X( p(X_i) * I(X_i; y) )
 
     Parameters:
-        pX   (array_like): Probability of the event X - p(X).
-        pX_y (array_like): Probability of the event X given single event y  p(X|y).
+        pX   (array_like, vector): Probability of the event X - p(X).
+        pX_y (array_like, vector): Probability of the event X given single event y  p(X|y).
 
     Returns:
         float: Mean conditional mutual information of the distribution I(X; y).
@@ -163,9 +169,9 @@ def mean_mutual_information(pX, pY, pXY):
     - pX, pY, pXY -> I(X; Y) = sum_X( p(X_i) * I(X_i; Y) )
 
     Parameters:
-        pX   (array_like): Probability of the event X - p(X).
-        pY   (array_like): Probability of the event Y - p(Y).
-        pXY  (array_like): Probability of the event XY - p(XY).
+        pX   (array_like, vector): Probability of the event X - p(X).
+        pY   (array_like, vector): Probability of the event Y - p(Y).
+        pXY  (array_like, vector): Probability of the event XY - p(XY).
 
     Returns:
         float: Mean mutual information of the distribution I(X; Y).

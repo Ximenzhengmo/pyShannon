@@ -8,6 +8,7 @@ This script initializes a Markov chain with a given transition matrix and parame
 """
 
 __float_dtype__ = np.float64
+__check_cache_size__ = 16
 np.set_printoptions(precision=4)
 
 # Initializes a Markov chain with a given transition matrix and parameters.
@@ -23,3 +24,6 @@ print(p_k)
 k = [1, 2, 5]
 p_k = mrkv1.prob_k(k)
 print(p_k)
+
+# Calculates the Entropy of p_k
+print(Entropy(p_k.flatten()))

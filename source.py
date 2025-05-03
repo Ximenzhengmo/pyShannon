@@ -2,10 +2,10 @@ from utils import *
 from markov import MarkovChain
 import numpy as np
 
-
+# ! TODO
 class MarkovSource(MarkovChain):
     def __init__(self, P_trans, m, x):
-        pass
+        super().__init__(P_trans, m, x)
 
 
     def generate_note(self, k, n, note=None, sep = '', prior=None):

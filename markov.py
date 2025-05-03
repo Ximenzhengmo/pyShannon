@@ -1,6 +1,7 @@
 import numpy as np
 import warnings
-from utils import check_cache, deprecate, _prob_dstrbt_check, __float_dtype__
+from utils import check_cache, deprecate, _prob_dstrbt_check, __float_dtype__, __check_cache_size__
+warnings.filterwarnings("default")
 
 class MarkovChain():
     r"""
