@@ -11,7 +11,7 @@ This is a Lib for the simulation and calculation of Information Theory. The owne
 There is some usage example in `example.py`
 
 * Calculate any entropy and any mutual information between any discrete distributions.
-  * I(x), I(X), H(X), H(XY), H(X|Y), I(x;y), I(X;y), I(X,Y) ... 
+  * I(x), I(X), H(X), H(XY), H(X|Y), I(x;y), I(X;y), I(X;Y) ... 
 * Calculate the joint probability distribution of Markov chains of any order and any length/dims
   * Markov Chain $X_1X_2X_3...X_n$ -> $P(X_k),P(X_1X_2...X_k),P(X_aX_bX_c...)$
 
