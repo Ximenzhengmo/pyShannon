@@ -1,6 +1,6 @@
 [English](./README-en.md) | [中文](../zh/README-zh.md)
 
-# (pyShannon)[https://github.com/Ximenzhengmo/pyShannon] -- an information theory Lib
+# [pyShannon](https://github.com/Ximenzhengmo/pyShannon) -- an information theory Lib
 
 ## Intro
 

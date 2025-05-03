@@ -1,6 +1,6 @@
 [English](../en/README-en.md) | [中文](./README-zh.md)
 
-# (pyShannon)[https://github.com/Ximenzhengmo/pyShannon] -- 一个信息论的计算库
+# [pyShannon](https://github.com/Ximenzhengmo/pyShannon) -- 一个信息论的计算库
 
 ## 简介
 
