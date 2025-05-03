@@ -1,3 +1,3 @@
-[English](./README-en.md) | [中文](../zh/README-zh.md)
+[English](../en/README-en.md) | [中文](./README-zh.md)
 
-# pyShanno -- an information theory simulating calculation Lib
+# pyShanno -- 一个信息论的仿真计算库
