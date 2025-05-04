@@ -1,19 +1,101 @@
 import numpy as np
 import warnings
+import functools
 from utils import check_cache, deprecate, _prob_dstrbt_check, __float_dtype__, __check_cache_size__
 warnings.filterwarnings("default")
+
+
+class MemoryLessChain():
+    r"""
+    A class to represent a memoryless chain.
+
+    Parameters:
+        P (array_like): probability distribution ( elem_num = x ).
+        x (int): Number of symbols.
+        m (deprecated, useless): This is a deprecated parameter for param-list-align with Class `MarkovChain`, which is recommended to use for MemoryChain.
+    """
+    def __init__(self, P, x, m=None):
+        r"""
+        Initialize the memoryless chain with a probability distribution and symbol number.
+        Parameters:
+            P (array_like): probability distribution ( elem_num = x ).
+            x (int): Number of symbols.
+            m (deprecated, useless): This is a deprecated parameter for param-list-align with Class `MarkovChain`, which is recommended to use for MemoryChain.
+        """
+        try:
+            P = np.asarray(P, dtype=__float_dtype__).reshape(x)  # Ensure P is a numpy array of floats
+        except ValueError:
+            raise ValueError("`P` must be an array-like of numbers with x**2 elements.")
+
+        assert _prob_dstrbt_check(P), "Probabilities `P` must be in the range [0, 1] and sum(P) = [1, 1,..]."
+        self.x = x
+        self.P = P 
+
+    def prob_topk(self, k):
+        r"""
+        Calculate the joint probability distribution of top-k symbol the memoryless chain.
+        - P(X_1, X_2, ..., X_k)
+
+        Parameters:
+            k (int): the index ( 1 begin ) of the Markov Chain sequence.
+        
+        Returns:
+            array_like: the joint probability distribution of top-k symbol the memoryless chain.
+            shape = (x, x, ..., x) ( k times )
+        """
+        if k < 0:
+            raise ValueError("`k` must be greater than or equal to 0.")
+        if k == 0:
+            warnings.warn("`0` index will be ignored. The probability distribution of X_0 is 1.")
+            return 1.
+        P = self.P.copy()
+        for i in range(1, k):
+            P = np.outer(P, self.P).flatten()
+        return P.reshape(*( [self.x] * k ))
+
+    def prob_k(self, k):
+        r"""
+        Calculate the probability distribution of k-th or joint probability distribution of X_k symbol the memoryless chain. For example, if k=2, return the probability distribution of X_2, if k=[1, 3], return the joint probability distribution of X_1,X_3.
+        - k = list(range(1, k+1)) -> P(X_1, X_2, ..., X_k) equivalent to `self.prob_topk(k)`
+        - k = [1, 3] -> P(X_1, X_3)
+        - k = [1, 2, 3] -> P(X_1, X_2, X_3)
+
+        Parameters:
+            k (int or int_list ): the index ( 1 begin ) of the Markov Chain sequence.
+        
+        Returns:
+            array_like: the probability distribution.
+            shape = (x, x, ..., x) ( len(k) times )
+        """
+        if isinstance(k, int):
+            k = [k]
+        assert len(k) > 0, "k(list) can't be empty."
+        assert np.all( map(lambda x: isinstance(x, int) and x >= 0, k) ), "k must be int or int_list and k >= 0."
+        assert np.all( np.diff(k) > 0 ),  "the elem of k must be increasing strictly."
+        if k[0] == 0:
+            warnings.warn("`0` index will be ignored. The probability distribution of X_0 is 1.")
+            k = k[1:]
+        p = self.prob_k(len(k))
+        return p
+
 
 class MarkovChain():
     r"""
     A class to represent a Markov Chain.
+
+    Parameters:
+        P_trans (array_like): m-order Transition probability matrix ( elem_num = x**(m+1) ).
+        x (int): Number of symbols.
+        m (int): Order of the Markov chain.
     """
-    def __init__(self, P_trans, m : int, x : int):
+    def __init__(self, P_trans, x : int, m : int):
         r"""
-        Initialize the Markov Chain with a transition matrix and parameters. The 0-order markov chain is a special case of the 1-order Markov chain.
+        Initialize the Markov Chain with a transition matrix and parameters. The 0-order markov chain is a special case of the 1-order Markov chain, it will be treated as a 1-order Markov chain. It is recommended to use `MemoryLessChain` for 0-order Markov chain.
+
         Parameters:
-            P_m (array_like): m-order Transition probability matrix ( elem_num = x**(m+1) ).
-            m (int): Order of the Markov chain.
+            P_trans (array_like): m-order Transition probability matrix ( elem_num = x**(m+1) ).
             x (int): Number of symbols.
+            m (int): Order of the Markov chain.
         """
         try:
             P_trans = np.asarray(P_trans, dtype=__float_dtype__).reshape(x**m, x)  # Ensure P_m is a numpy array of floats
@@ -74,12 +156,9 @@ class MarkovChain():
         return steps
 
     def _prob_step(self, p, d, newdim):
-        p_rsp = p.reshape(-1, self.x**self.m)
-        sub_list = []
-        for i in range(self.x**newdim):
-            ans = np.multiply(self._step_matrix(d, newdim)[:, i], p_rsp).reshape(-1, 1)
-            sub_list.append(ans)
-        return np.concatenate(sub_list, axis=1).reshape( *(list(p.shape) + [self.x] * newdim) )
+        p_rsp = p.reshape(-1, self.x**self.m, 1)
+        matrix = self._step_matrix(d, newdim).reshape(1, self.x**self.m, self.x**newdim)
+        return np.multiply(matrix, p_rsp).reshape(*(list(p.shape) + [self.x] * newdim))
     
     @check_cache
     def prob_topk(self, k : int):

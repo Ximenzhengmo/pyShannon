@@ -1,4 +1,4 @@
-from markov import *
+from chain import *
 from utils import *
 
 r"""
@@ -21,9 +21,17 @@ p_k = mrkv1.prob_topk(k)
 print(p_k)
 
 # Calculates the joint probability distibution of ( X_1, X_2, X_5 )
-k = [1, 2, 5]
+k = [1, 2, 8]
 p_k = mrkv1.prob_k(k)
 print(p_k)
 
 # Calculates the Entropy of p_k
 print(Entropy(p_k.flatten()))
+
+# Initializes a MemoryLessChain with a given probability distribution and parameters.
+mlc = MemoryLessChain([0.25, 0.75], 2)
+
+# Calculates the joint probability distibution of a k-length chain
+k = 3
+p_k = mlc.prob_topk(k)
+print(p_k)

@@ -1,5 +1,6 @@
 from utils import * 
-from markov import MarkovChain
+import chain
+from chain import MarkovChain, MemoryLessChain
 import numpy as np
 
 
