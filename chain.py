@@ -75,7 +75,7 @@ class MemoryLessChain():
         if k[0] == 0:
             warnings.warn("`0` index will be ignored. The probability distribution of X_0 is 1.")
             k = k[1:]
-        p = self.prob_k(len(k))
+        p = self.prob_topk(len(k))
         return p
 
 

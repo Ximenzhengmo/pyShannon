@@ -28,14 +28,23 @@ class Source():
         instance = new_cls(P_trans, x, m)
         return instance
 
+
     def __init__(self, P_trans, x, m):
         super(self.__class__, self).__init__(P_trans, x, m)
-        print(f"ChildClass initialized with parameter")
 
-    # ! TODO
+    @check_cache
+    def _ten2any(self, n, base, _len):
+        digits = []
+        while n:
+            digits.append(n % base)
+            n //= base
+        if _len is not None:
+            digits += [0] * (_len - len(digits))
+        return digits[::-1]
+
     def random_sequence(self, k, n, symbol=None, sep = '', prior=None, placeholder=None):
         r"""
-        Generate random output sequences composed of symbols in source.
+        Generate random an iterator of output sequences composed of symbols in source.
 
         Parameters:
             k (int): the length of the sequence.
@@ -46,15 +55,33 @@ class Source():
             placeholder (str, optional): the placeholder to fill the gap in `prior`. Default is None. Remember to use an ASCII char that is independent on `symbol` and `sep`, `@`, `*` or `#` may be good choices.
 
         Returns:
-            str_list: a list of the generated sequence with `n` str.
+            iterator: an iterator that generates random sequences of length `k` with totally `n` iters.
+        
+        Example:
+            ```python
+            s = Source([0.75, 0.25])
+            itera = s.random_sequence(9, 5, symbol=['0', '1'] ,prior='0-1-@-0-1-@-0', placeholder='@', sep='-')
+            for i in itera:
+                print(i)
+            ```
         """
-        assert self.x > 36 and symbol is not None, "If the number of symbols is greater than 36, `symbol` is needed."
+        assert symbol is not None if self.x > 36 else True, "If the number of symbols is greater than 36, `symbol` is needed."
         if symbol is None:
             symbol = [str(i) for i in range(min(self.x, 10))]
-            symbol += [chr(i) for i in range(65, 65 + self.x - 10)] if self.x > 10 else []
+            symbol += [chr(i) for i in range(ord('A'), ord('A') + self.x - 10)] if self.x > 10 else []
         else :
             assert len(symbol) == self.x, "The length of `symbol` must be equal to the number of symbols."
+        prior_list = list(prior) if sep == '' else prior.split(sep)
+        prior_indexs = [ i+1 for i, s in enumerate(prior_list) if s != placeholder ]
+        prior_symbols = list(filter(lambda x: x != placeholder, prior_list))
+        cal_indexs = [i for i in range(1, k+1) if i not in prior_indexs]
+        p = self.prob_k(cal_indexs).flatten()
+        template = sep.join([prior_symbols.pop(0) if i+1 in prior_indexs else '{}' for i in range(k)])
         
+        for i in range(n):
+            index_ten = np.random.choice(self.x**len(cal_indexs), p=p, replace=True)
+            index_list = self._ten2any(index_ten, self.x, len(cal_indexs))
+            yield template.format(*list(map(lambda x: symbol[x], index_list)))
 
 
 if __name__ == "__main__":

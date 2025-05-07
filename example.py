@@ -1,4 +1,5 @@
 from chain import *
+from source import *
 from utils import *
 
 r"""
@@ -35,3 +36,10 @@ mlc = MemoryLessChain([0.25, 0.75], 2)
 k = 3
 p_k = mlc.prob_topk(k)
 print(p_k)
+
+# create a 2-symbol MemoryLessSource with a given probability distribution and parameters.
+# generate `n` random sequences of length `k` from the source.
+s = Source([0.75, 0.25])
+itera = s.random_sequence(9, 5, symbol=['0', '1'] ,prior='0-1-@-0-1-@-0', placeholder='@', sep='-')
+for i in itera:
+    print(i)

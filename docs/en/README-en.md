@@ -14,6 +14,8 @@ There is some usage example in `example.py`
   * I(x), I(X), H(X), H(XY), H(X|Y), I(x;y), I(X;y), I(X;Y) ... 
 * Calculate the joint probability distribution of Markov chains of any order and any length/dims
   * Markov Chain $X_1X_2X_3...X_n$ -> $P(X_k),P(X_1X_2...X_k),P(X_aX_bX_c...)$
+* Simulate the output sequence of discrete memoryless sources and Markov sources
+  * Generate the output sequence of any symbol combination, support any prior and diversified output format
 
 ### Env (to be continued)
 ```python
