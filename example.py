@@ -39,7 +39,7 @@ print(p_k)
 
 # create a 2-symbol MemoryLessSource with a given probability distribution and parameters.
 # generate `n` random sequences of length `k` from the source.
-s = Source([0.75, 0.25])
-itera = s.random_sequence(9, 5, symbol=['0', '1'] ,prior='0-1-@-0-1-@-0', placeholder='@', sep='-')
-for i in itera:
+s = Source([0.75, 0.25], symbol=['0', '1'])
+itera = s.random_sequence_gen(9, prior='0-1-@-0-1-@-0', placeholder='@', sep='-')
+for i in itera(5):
     print(i)
