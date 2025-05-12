@@ -17,6 +17,7 @@ class Source():
             source_type (str, optional, default='MemoryLess'): Type of the source. Can be 'MemoryLess' or 'Markov'.
             symbol (str_list, dependedly optional): the symbol of the source. If None, `symbol` generated from ['0', '1', ..., '9', 'A', ... 'Z'] (36 totally). if the number of symbols greater than 36, `symbol` is needed.
     """
+    # !TODO: 解决 type 创建类对象无法显示传递 __doc__ 的问题( 解决代码提示和跳转问题 )
     def __new__(cls, P_trans, x=2, m=0, symbol=None ,source_type='MemoryLess'):
         attr = dict(cls.__dict__)
         del attr['__new__']
@@ -73,24 +74,52 @@ class Source():
                 print(i)
             ```
         """
-        
+        # !TODO: `sep` = '' 时如何处理非单字符符号 考虑KMP算法
         prior_list = list(prior) if sep == '' else prior.split(sep)
         prior_indexs = [ i+1 for i, s in enumerate(prior_list) if s != placeholder ]
         prior_symbols = list(filter(lambda x: x != placeholder, prior_list))
         cal_indexs = [i for i in range(1, k+1) if i not in prior_indexs]
         p = self.prob_k(cal_indexs).flatten()
         template = sep.join([prior_symbols.pop(0) if i+1 in prior_indexs else '{}' for i in range(k)])
-        
         def _sequence_iterate(num):
             for i in range(num):
-                index_ten = np.random.choice(self.x**len(cal_indexs), p=p, replace=True)
+                index_ten = np.random.choice(self.x**len(cal_indexs), p=p/p.sum(), replace=True)
                 index_list = self._ten2any(index_ten, self.x, len(cal_indexs))
                 yield template.format(*list(map(lambda x: self.symbol[x], index_list)))
 
         return _sequence_iterate(n) if n is not None else _sequence_iterate
 
-    def symbol_gen():
-        pass
+
+    def symbol_gen(self, k=None, sep = '', prior=None, placeholder=None):
+        r"""
+        Generate a series of symbols from the source according to the probability transition matrix.
+
+        Parameters:
+            k (int, optional): the number of symbols. if None, return an iterator `func` with required args `k`, else return an iterator with `k` iters. 
+            sep (str, optional): the separator in `prior` between symbols. Default is ''. It is recommended to use when you have different length of symbols or the output sequence can't be decoded uniquely.
+            prior (str, optional): the prior symbol of the chain. A random string composed of symbols in `symbol` under the probability distribution of the sequence. if used, keep consistent with `sep`. if the prior symbol is not adjacent in index, use `placeholder` to fill the gap. 
+            placeholder (str, optional): the placeholder to fill the gap in `prior`. Default is None. Remember to use an ASCII char that is independent on `symbol` and `sep`, `@`, `*` or `#` may be good choices.
+
+        Returns:
+            iterator: an iterator or iterator func that generates random sequences of length `k`.
+        """
+        prior_list = list(prior) if sep == '' else prior.split(sep)
+        sequence = list(self.random_sequence_gen(len(prior_list), n=1, sep=sep, prior=prior, placeholder=placeholder ))[0]
+        # !TODO: `sep` = '' 时如何处理非单字符符号 考虑KMP算法
+        sequence = sequence.split(sep) if sep != '' else list(sequence)
+        last_symbols = sequence[-1-self.m:-1]
+        def _sequence_iterate(num):
+            last_indexs = list(map(lambda x: self.symbol.index(x), last_symbols))
+            for i in range(num):
+                if i < len(sequence):
+                    yield sequence[i]
+                else:
+                    p = self._single_step_prob(last_indexs)
+                    index = np.random.choice(self.x, p=p/p.sum(), replace=True)
+                    last_indexs = last_indexs[1:] + [index]
+                    yield self.symbol[index]
+        return _sequence_iterate(k) if k is not None else _sequence_iterate
+    
 
 if __name__ == "__main__":
     pass

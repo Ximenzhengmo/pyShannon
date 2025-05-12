@@ -78,6 +78,10 @@ class MemoryLessChain():
         p = self.prob_topk(len(k))
         return p
 
+    def _single_step_prob(self, last_index: list):
+        return self.P
+
+
 
 class MarkovChain():
     r"""
@@ -245,6 +249,9 @@ class MarkovChain():
         p = p.sum(axis=tuple(axis_sum))
         return p
     
+    def _single_step_prob(self, last_index: list):
+        return self.P_trans.reshape(*([self.x]*(self.m+1)))[*last_index]
+
 
 if __name__ == "__main__":
     pass

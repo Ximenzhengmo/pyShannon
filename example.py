@@ -39,7 +39,20 @@ print(p_k)
 
 # create a 2-symbol MemoryLessSource with a given probability distribution and parameters.
 # generate `n` random sequences of length `k` from the source.
+n = 5
 s = Source([0.75, 0.25], symbol=['0', '1'])
 itera = s.random_sequence_gen(9, prior='0-1-@-0-1-@-0', placeholder='@', sep='-')
-for i in itera(5):
+for i in itera(n):
     print(i)
+
+
+# create a 2-symbol 2-order MarkovSource with a given probability distribution and parameters.
+# generate symbols sequences of length `k` from the source.
+k = 9
+s = Source([0.25, 0.75, 0.6, 0.4, 0.9, 0.1, 0.2, 0.8], 2, 2, symbol=['0', '1'], source_type='Markov')
+s.setup(2, [0.2308, 0.1923, 0.1923, 0.3846])
+itera = s.symbol_gen(prior='01@01@0', placeholder='@')
+for i in itera(k):
+    print(i, end=' ')
+print("")
+
