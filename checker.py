@@ -23,6 +23,7 @@ class Checker:
         return_checker: Function to validate and modify return values
     """
     checked_objects = dict()
+    _checked_lock = RLock()
     def __init__(self):
         if not (hasattr(self, 'arg_checker') and callable(self.arg_checker)):
             self.arg_checker = None
@@ -30,33 +31,41 @@ class Checker:
             self.return_checker = None
 
     def clear_checked(self, val):
-        with RLock():
+        with self._checked_lock:
             idval = id(val)
-            self.checked_objects[idval].pop()
-            if len(self.checked_objects[idval]) == 0:
-                del self.checked_objects[idval]
+            stack = self.checked_objects.get(idval)
+            if not stack:
+                return
+            stack.pop()
+            if len(stack) == 0:
+                self.checked_objects.pop(idval, None)
 
     def add_checked(self, val):
-        with RLock():
+        with self._checked_lock:
+            if val is None:
+                return
             idval = id(val)
-            if idval not in self.checked_objects.keys():
+            if idval not in self.checked_objects:
                 self.checked_objects[idval] = [type(self)]
             else:
                 self.checked_objects[idval].append(type(self))
 
     def is_checked(self, val):
-        with RLock():
+        with self._checked_lock:
             if val is None:
                 return True
             idval = id(val)
-            return (idval in self.checked_objects.keys()) and (type(self) in self.checked_objects[idval][-1].__mro__)
+            stack = self.checked_objects.get(idval)
+            if not stack:
+                return False
+            return issubclass(stack[-1], type(self))
 
     def check_warning(self, text, funcinfo=None, warn_type=RuntimeWarning):
         if funcinfo is not None:
             text = f"{text} (Function `{funcinfo.get('funcname', '')}` in `{funcinfo.get('funcfile', '')}:{funcinfo.get('funcline', '')}`)"
         warnings.warn(text, warn_type)
 
-    def _check_parameters(self, bound_args, params_to_check, info=None) -> tuple:
+    def _check_parameters(self, bound_args, params_to_check, info=None, param_positions=None) -> tuple:
         """
         Check function parameters using the provided checker
         
@@ -75,7 +84,9 @@ class Checker:
         param_names = list(bound_args.arguments.keys()) if params_to_check is True else params_to_check
         modified_args = list(bound_args.args)
         modified_kwargs = dict(bound_args.kwargs)
-        sig_params = list(bound_args.signature.parameters.keys())
+        if param_positions is None:
+            sig_params = list(bound_args.signature.parameters.keys())
+            param_positions = {name: idx for idx, name in enumerate(sig_params)}
 
         for param_name in param_names:
             if param_name in bound_args.arguments:
@@ -86,8 +97,8 @@ class Checker:
                         if param_name in bound_args.kwargs:
                             modified_kwargs[param_name] = new_value
                         else:
-                            param_index = sig_params.index(param_name)
-                            if param_index < len(modified_args):
+                            param_index = param_positions.get(param_name)
+                            if param_index is not None and param_index < len(modified_args):
                                 modified_args[param_index] = new_value
                     self.add_checked(new_value)
                     added_list.append(new_value)
@@ -130,7 +141,7 @@ class Checker:
 
                         self.add_checked(new_value)
                         added_list.append(new_value)
-            return tuple(results) if modified else result
+            return (tuple(results) if modified else result), added_list
         else:
             if not self.is_checked(result):
                 result = self.return_checker(result, info=info)
@@ -164,9 +175,7 @@ class ScaleoneChecker(AsarrayChecker):
         super().__init__()
     
     def _scaleone(self, value):
-        if np.all(np.logical_and(0. <= value, value <= 1.)):
-            return True
-        return False
+        return bool(np.all(np.logical_and(0. <= value, value <= 1.)))
 
     def arg_checker(self, value, param_name=None, info=None, **kwargs):
         value = AsarrayChecker.arg_checker(self, value, param_name)
@@ -187,24 +196,28 @@ class ProbabilityChecker(ScaleoneChecker):
         self.axis = axis
 
     def _sumone(self, value):
-        if np.isclose(np.sum(value, axis=self.axis), 1.0, 
-                        atol=np.finfo(value.dtype).eps if isinstance(value, np.ndarray) else 1e-6):
-            return True
-        return False
+        close = np.isclose(
+            np.sum(value, axis=self.axis),
+            1.0,
+            atol=np.finfo(value.dtype).eps if isinstance(value, np.ndarray) else 1e-6,
+        )
+        return bool(np.all(close))
 
     def arg_checker(self, value, param_name=None, info=None, **kwargs):
         value = ScaleoneChecker.arg_checker(self, value, param_name)
         if self._sumone(value):
             return value
-        raise CheckError(f"Input Param({param_name}) must be a valid probability distribution {f'in axis({self.axis})' if self.axis else ''}.")
+        axis_text = f" in axis({self.axis})" if self.axis is not None else ""
+        raise CheckError(f"Input Param({param_name}) must be a valid probability distribution{axis_text}.")
 
     def return_checker(self, value, idx=0, info=None, **kwargs):
         """Ensure the output is a valid probability distribution"""        
-        AsarrayChecker.return_checker(self, value, idx)
+        value = AsarrayChecker.return_checker(self, value, idx)
         if not (self._sumone(value) and self._scaleone(value)):
             value = value / np.sum(value, axis=self.axis, keepdims=True)
             value = np.clip(value, 0., 1.)
-            self.check_warning(f"Out Param({idx}) is not a valid probability distribution {f'in axis({self.axis})' if self.axis else ''}, it will be normalized.", info)
+            axis_text = f" in axis({self.axis})" if self.axis is not None else ""
+            self.check_warning(f"Out Param({idx}) is not a valid probability distribution{axis_text}, it will be normalized.", info)
         return value
 
 
@@ -232,21 +245,38 @@ def inspector(
     if isinstance(returns_to_check, int) and not isinstance(returns_to_check, bool):
         returns_to_check = (returns_to_check,)
     def decorator(func: Callable) -> Callable:
+        if checker is None:
+            return func
+
+        sig = inspect.signature(func)
+        param_positions = {name: idx for idx, name in enumerate(sig.parameters.keys())}
+
+        info = {
+            'funcfile': None,
+            'funcline': None,
+            'funcname': func.__name__,
+        }
+        try:
+            info['funcfile'] = inspect.getsourcefile(func)
+        except (OSError, TypeError):
+            pass
+        try:
+            info['funcline'] = inspect.getsourcelines(func)[1]
+        except (OSError, TypeError):
+            pass
+
         @functools.wraps(func)
         def wrapper(*args, **kwargs) -> Any:
-            if checker is None:
-                return func(*args, **kwargs)
             added_args, added_returns = [], []
             try:
-                sig = inspect.signature(func)
-                info = info={
-                    'funcfile': inspect.getsourcefile(func),
-                    'funcline': inspect.getsourcelines(func)[1],
-                    'funcname': func.__name__
-                    }
                 bound_args = sig.bind(*args, **kwargs)
                 bound_args.apply_defaults()
-                modified_args, modified_kwargs, added_args = checker._check_parameters(bound_args, args_to_check, info=info)
+                modified_args, modified_kwargs, added_args = checker._check_parameters(
+                    bound_args,
+                    args_to_check,
+                    info=info,
+                    param_positions=param_positions,
+                )
                 result = func(*modified_args, **modified_kwargs)
                 result, added_returns = checker._check_return_value(result, returns_to_check, info=info)
                 

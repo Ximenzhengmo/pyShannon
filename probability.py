@@ -1,4 +1,4 @@
-from checker import inspector, ProbabilityChecker, ScaleoneChecker, AsarrayChecker
+from checker import ProbabilityChecker, ScaleoneChecker, AsarrayChecker
 import numpy as np
 
 probChecker_lastaxis = ProbabilityChecker(axis=-1)
@@ -6,7 +6,31 @@ probChecker_Allaxis = ProbabilityChecker(axis=None)
 scaleoneChecker = ScaleoneChecker()
 asarrayChecker = AsarrayChecker()
 
-@inspector(args_to_check=True, checker=scaleoneChecker)
+def _self_information_impl(p):
+    p = np.where(p != 0, p, np.finfo(p.dtype).eps)  # Add a small epsilon to avoid log(0)
+    return -np.log2(p)
+
+
+def _entropy_impl(p):
+    return np.dot(_self_information_impl(p), p)
+
+
+def _mutual_information_impl(px, px_y):
+    return _self_information_impl(px) - _self_information_impl(px_y)
+
+
+def _check_asarray(value, param_name):
+    return asarrayChecker.arg_checker(value, param_name=param_name)
+
+
+def _check_scaleone(value, param_name):
+    return scaleoneChecker.arg_checker(value, param_name=param_name)
+
+
+def _check_probability(value, param_name):
+    return probChecker_Allaxis.arg_checker(value, param_name=param_name)
+
+
 def self_information(p):
     r"""
     Calculate the self-information of an event with probability p.
@@ -19,10 +43,9 @@ def self_information(p):
     Returns:
         array_like: Self-information of the event.
     """
-    p = np.where(p != 0, p, np.finfo(p.dtype).eps)  # Add a small epsilon to avoid log(0)
-    return -np.log2(p)
+    p = _check_scaleone(p, 'p')
+    return _self_information_impl(p)
 
-@inspector(args_to_check=True, checker=scaleoneChecker)
 def mutual_information(px, px_y):
     r"""
     Calculate the mutual-information of an event with probability p.
@@ -36,9 +59,10 @@ def mutual_information(px, px_y):
     Returns:
         array_like: Self-information of the event.
     """
-    return self_information(px) - self_information(px_y)
+    px = _check_scaleone(px, 'px')
+    px_y = _check_scaleone(px_y, 'px_y')
+    return _mutual_information_impl(px, px_y)
 
-@inspector(args_to_check=True, checker=probChecker_Allaxis)
 def Entropy(p):
     r"""
     Calculate the entropy of a probability distribution.
@@ -51,10 +75,9 @@ def Entropy(p):
     Returns:
         float: Entropy of the distribution H(X) or H(XY).
     """
-    return np.dot( self_information(p),  p )
+    p = _check_probability(p, 'p')
+    return _entropy_impl(p)
 
-@inspector(args_to_check=('p'), checker=asarrayChecker)
-@inspector(args_to_check=('pXY'), checker=probChecker_Allaxis)
 def conditional_entropy(p, pXY):
     r"""
     Calculate the conditional entropy of a probability distribution.
@@ -67,10 +90,10 @@ def conditional_entropy(p, pXY):
     Returns:
         float: Conditional entropy of the distribution H(X|y).
     """
-    return np.dot( self_information(p),  pXY )
+    p = _check_asarray(p, 'p')
+    pXY = _check_probability(pXY, 'pXY')
+    return np.dot(_self_information_impl(p), pXY)
 
-@inspector(args_to_check=('pX_y'), checker=asarrayChecker)
-@inspector(args_to_check=('pX'), checker=probChecker_Allaxis)
 def mean_contitional_mutial_information(pX, pX_y):
     r"""
     Calculate the mean conditional mutual information of a probability distribution.
@@ -83,10 +106,11 @@ def mean_contitional_mutial_information(pX, pX_y):
     Returns:
         float: Mean conditional mutual information of the distribution I(X; y).
     """
-    return np.dot(pX, mutual_information(pX, pX_y)) 
+    pX = _check_probability(pX, 'pX')
+    pX_y = _check_asarray(pX_y, 'pX_y')
+    return np.dot(pX, _mutual_information_impl(pX, pX_y))
 
 
-@inspector(args_to_check=True, checker=probChecker_Allaxis)
 def mean_mutual_information(pX, pY, pXY):
     r"""
     Calculate the mean mutual information of a probability distribution.
@@ -100,7 +124,10 @@ def mean_mutual_information(pX, pY, pXY):
     Returns:
         float: Mean mutual information of the distribution I(X; Y).
     """
-    return Entropy(pX) + Entropy(pY) - Entropy(pXY)
+    pX = _check_probability(pX, 'pX')
+    pY = _check_probability(pY, 'pY')
+    pXY = _check_probability(pXY, 'pXY')
+    return _entropy_impl(pX) + _entropy_impl(pY) - _entropy_impl(pXY)
 
 
 # Example usage

@@ -1,42 +1,52 @@
 import numpy as np
 import functools
 import warnings
-from _thread import RLock
 
 warnings.filterwarnings("default")
 
 __float_dtype__ = np.float32  # Default float type for numpy arrays
 __check_cache_size__ = 16  # Default cache size for the decorator
 
+def _is_hashable(value):
+    try:
+        hash(value)
+    except TypeError:
+        return False
+    return True
+
+
+def _cacheable_args(args, kwargs):
+    # ndarray keys based on `id` are unsafe (id reuse may produce false hits),
+    # so skip cache for ndarray-bearing calls.
+    for arg in args:
+        if isinstance(arg, np.ndarray) or not _is_hashable(arg):
+            return False
+    for key, value in kwargs.items():
+        if not _is_hashable(key):
+            return False
+        if isinstance(value, np.ndarray) or not _is_hashable(value):
+            return False
+    return True
+
+
 def check_cache(func):
     r"""
-    A decorator to cache the results of a function. The cache is cleared when the size exceeds __check_cache_size__.
+    A lightweight cache decorator for hashable arguments.
+    Unhashable arguments (including ndarray) bypass cache.
     """
-    cache_dict = {}
-    lock = RLock()
+    cached_func = functools.lru_cache(maxsize=__check_cache_size__)(func)
+
     @functools.wraps(func)
     def _check_cache(*args, **kwargs):
-        key_parts = [id(arg) if isinstance(arg, np.ndarray) else arg for arg in args] \
-        + [(k, id(v)) if isinstance(v, np.ndarray) else (k, v) for k, v in kwargs.items()]
-        key = tuple(key_parts)
-        with lock:
-            if key in cache_dict:
-                print( "find in cache" )
-                print(cache_dict)
-                return cache_dict[key]
-        result = func(*args, **kwargs)
-        clear_cache()
-        with lock:
-            cache_dict[key] = result
-        return result
-    
+        if _cacheable_args(args, kwargs):
+            return cached_func(*args, **kwargs)
+        return func(*args, **kwargs)
+
     def clear_cache():
-        nonlocal cache_dict
-        with lock:
-            if len(cache_dict) > __check_cache_size__:
-                cache_dict = {} 
-    
+        cached_func.cache_clear()
+
     _check_cache.clear = clear_cache
+    _check_cache.cache_info = cached_func.cache_info
     return _check_cache
 
 
@@ -48,7 +58,6 @@ def deprecate(func):
     return _deprecate
 
 
-@check_cache
 def _prob_scale_check(p):
     """
     Check if the probabilities are in the range [0, 1].
@@ -57,17 +66,18 @@ def _prob_scale_check(p):
         return True
     return False
 
-@check_cache
 def _prob_sum_one_check(p, axis=None):
     """
     Check if the sum of the probabilities is equal to 1.
     """
-    if np.isclose(np.sum(p, axis=axis), 1.0, 
-                    atol=np.finfo(p.dtype).eps if isinstance(p, np.ndarray) else 1e-6):
-        return True
-    return False
+    sum_p = np.sum(p, axis=axis)
+    close = np.isclose(
+        sum_p,
+        1.0,
+        atol=np.finfo(p.dtype).eps if isinstance(p, np.ndarray) else 1e-6,
+    )
+    return bool(np.all(close))
 
-@check_cache
 def _prob_dstrbt_check(p, axis=None):
     return _prob_scale_check(p) and _prob_sum_one_check(p, axis=axis)
 
