@@ -21,6 +21,8 @@ def check_cache(func):
         key = tuple(key_parts)
         with lock:
             if key in cache_dict:
+                print( "find in cache" )
+                print(cache_dict)
                 return cache_dict[key]
         result = func(*args, **kwargs)
         clear_cache()
@@ -51,7 +53,7 @@ def _prob_scale_check(p):
     """
     Check if the probabilities are in the range [0, 1].
     """
-    if 0. <= p.all() <= 1. :
+    if np.all(np.logical_and(0. <= p, p <= 1.)):
         return True
     return False
 
@@ -60,9 +62,10 @@ def _prob_sum_one_check(p, axis=None):
     """
     Check if the sum of the probabilities is equal to 1.
     """
-    if np.all(np.abs(np.sum(p, axis=axis) - 1) > np.finfo(p.dtype).eps):
-        return False
-    return True
+    if np.isclose(np.sum(p, axis=axis), 1.0, 
+                    atol=np.finfo(p.dtype).eps if isinstance(p, np.ndarray) else 1e-6):
+        return True
+    return False
 
 @check_cache
 def _prob_dstrbt_check(p, axis=None):
