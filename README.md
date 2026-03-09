@@ -5,6 +5,9 @@
 `pyShannon` is a Python toolkit for discrete information theory and stochastic process modeling.
 `pyShannon` 是一个面向离散信息论与随机过程建模的 Python 工具库。
 
+This project has a strong vibe coding influence, with AI contributions in both code and documentation.
+目前本项目有 vibe coding 的大量参与，代码和文档中 AI 味十足
+
 ## Current Coverage
 
 The current implementation includes:
