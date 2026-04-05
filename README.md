@@ -32,22 +32,10 @@ Flask >= 3.1
 python example.py
 ```
 
-运行题目求解脚本：
-
-```bash
-python solve.py
-```
-
 运行本地网页计算器：
 
 ```bash
-conda run -n pythontest python web/app.py
-```
-
-启动后打开：
-
-```text
-http://127.0.0.1:5000
+python web/app.py
 ```
 
 ## 实验脚本
