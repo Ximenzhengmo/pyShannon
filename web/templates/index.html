@@ -1,0 +1,175 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pyShannon 信息论计算器</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script>
+        window.MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+</head>
+<body>
+    <div class="page-shell">
+        <header class="hero-card">
+            <div class="hero-copy">
+                <div class="hero-topline">
+                    <p class="eyebrow">Local Flask App</p>
+                    <button type="button" class="ghost-btn lang-switch" id="lang-switch">EN</button>
+                </div>
+                <h1 data-i18n="hero_title">pyShannon 信息论计算器</h1>
+                <p class="hero-text" data-i18n="hero_text">
+                    用现有 Python 计算核心驱动网页交互。支持随机变量、派生变量、联合分布输入，
+                    自动计算熵、条件熵、互信息和条件互信息，还能递归展开公式依赖与对应代码。
+                </p>
+            </div>
+            <div class="hero-formula">
+                <div class="formula-chip">$H(X)=-\sum_x p(x)\log_2 p(x)$</div>
+                <div class="formula-chip">$I(X;Y)=H(X)+H(Y)-H(X,Y)$</div>
+                <div class="formula-chip">$I(X;Y\mid Z)=H(X\mid Z)-H(X\mid Y,Z)$</div>
+            </div>
+        </header>
+
+        <main class="main-grid">
+            <section class="panel control-panel">
+                <div class="panel-head">
+                    <h2 data-i18n="workspace_title">变量工作台</h2>
+                    <p data-i18n="workspace_text">先定义基础随机变量，再按需要添加派生变量。</p>
+                </div>
+
+                <div class="subsection">
+                    <div class="subsection-head">
+                        <h3 data-i18n="base_vars_title">基础变量</h3>
+                        <div class="button-row compact">
+                            <button type="button" class="ghost-btn" id="add-base-variable" data-i18n="add_variable">新增变量</button>
+                            <button type="button" class="ghost-btn" data-quick-var="X">+X</button>
+                            <button type="button" class="ghost-btn" data-quick-var="Y">+Y</button>
+                            <button type="button" class="ghost-btn" data-quick-var="Z">+Z</button>
+                            <button type="button" class="ghost-btn" data-quick-var="W">+W</button>
+                        </div>
+                    </div>
+                    <div id="base-variable-list" class="stack-list"></div>
+                </div>
+
+                <div class="subsection">
+                    <div class="subsection-head">
+                        <h3 data-i18n="derived_vars_title">派生变量</h3>
+                        <div class="button-row compact">
+                            <button type="button" class="ghost-btn" id="add-derived-variable" data-i18n="add_derived_variable">新增派生变量</button>
+                        </div>
+                    </div>
+                    <p class="sub-help" data-i18n="derived_help">表达式使用基础变量的键名，例如：<code>X*Y</code>、<code>X+Y</code>、<code>abs(X-Y)</code>。</p>
+                    <div id="derived-variable-list" class="stack-list"></div>
+                </div>
+
+                <div class="subsection">
+                    <div class="subsection-head">
+                        <h3 data-i18n="joint_table_title">联合概率表</h3>
+                        <div class="button-row compact">
+                            <button type="button" class="primary-btn" id="build-table" data-i18n="build_table">生成概率表</button>
+                            <button type="button" class="ghost-btn" id="load-sample" data-i18n="load_sample">加载题图示例</button>
+                        </div>
+                    </div>
+                    <div class="button-row compact tool-row">
+                        <button type="button" class="ghost-btn" id="fill-uniform" data-i18n="fill_uniform">均匀填充</button>
+                        <button type="button" class="ghost-btn" id="normalize-table" data-i18n="normalize_table">当前表归一化</button>
+                        <label class="checkline">
+                            <input type="checkbox" id="normalize-before-submit">
+                            <span data-i18n="normalize_before_submit">计算前自动归一化</span>
+                        </label>
+                    </div>
+                    <div class="sum-banner" id="probability-sum-banner"></div>
+                    <div id="probability-table-wrap" class="table-wrap empty-state"></div>
+                </div>
+
+                <div class="subsection action-block">
+                    <button type="button" class="primary-btn big-btn" id="run-calculation" data-i18n="run_calculation">开始计算</button>
+                    <p class="sub-help" data-i18n="exam_hint">提示：如果你只想复现题图，直接点“加载题图示例”再点“开始计算”就可以。</p>
+                </div>
+            </section>
+
+            <section class="panel result-panel">
+                <div class="panel-head">
+                    <h2 data-i18n="result_title">计算结果</h2>
+                    <p data-i18n="result_text">结果完全由后端 Python 计算产生，前端负责筛选、递归展开和代码展示。</p>
+                </div>
+
+                <div id="status-banner" class="status-banner neutral"></div>
+
+                <div class="result-toolbar">
+                    <input type="text" id="formula-input" class="search-input" data-i18n-placeholder="formula_placeholder">
+                    <div class="button-row compact inline-actions">
+                        <button type="button" class="ghost-btn" id="add-formula-focus" data-i18n="add_formula_focus">添加聚焦公式</button>
+                        <button type="button" class="ghost-btn" id="clear-formula-focus" data-i18n="clear_formula_focus">清空聚焦</button>
+                    </div>
+                </div>
+
+                <div id="formula-chip-bank" class="chip-bank empty-state"></div>
+                <div id="active-formula-bank" class="active-bank"></div>
+
+                <div id="summary-cards" class="summary-grid"></div>
+                <div id="variable-summary" class="variable-summary"></div>
+                <div id="distribution-preview" class="distribution-preview"></div>
+                <div id="matrix-root" class="matrix-root empty-state"></div>
+                <div id="explanation-root" class="results-root empty-state"></div>
+                <div id="code-root" class="code-root empty-state"></div>
+                <div id="results-root" class="results-root empty-state"></div>
+            </section>
+        </main>
+    </div>
+
+    <template id="base-variable-template">
+        <div class="editor-card variable-card base-card">
+            <div class="card-topline">
+                <span class="pill" data-i18n="base_pill">Base</span>
+                <button type="button" class="remove-btn" data-i18n="remove">移除</button>
+            </div>
+            <div class="field-grid three-col">
+                <label>
+                    <span data-i18n="field_key">键名</span>
+                    <input type="text" class="var-key" data-i18n-placeholder="placeholder_key">
+                </label>
+                <label>
+                    <span data-i18n="field_latex">LaTeX</span>
+                    <input type="text" class="var-latex" data-i18n-placeholder="placeholder_latex">
+                </label>
+                <label>
+                    <span data-i18n="field_states">状态</span>
+                    <input type="text" class="var-states" data-i18n-placeholder="placeholder_states">
+                </label>
+            </div>
+            <div class="preview-line"><span data-i18n="preview">预览</span>：<span class="latex-preview">$X$</span></div>
+        </div>
+    </template>
+
+    <template id="derived-variable-template">
+        <div class="editor-card variable-card derived-card">
+            <div class="card-topline">
+                <span class="pill accent" data-i18n="derived_pill">Derived</span>
+                <button type="button" class="remove-btn" data-i18n="remove">移除</button>
+            </div>
+            <div class="field-grid three-col">
+                <label>
+                    <span data-i18n="field_key">键名</span>
+                    <input type="text" class="var-key" data-i18n-placeholder="placeholder_key">
+                </label>
+                <label>
+                    <span data-i18n="field_latex">LaTeX</span>
+                    <input type="text" class="var-latex" data-i18n-placeholder="placeholder_latex">
+                </label>
+                <label>
+                    <span data-i18n="field_expression">表达式</span>
+                    <input type="text" class="var-expression" data-i18n-placeholder="placeholder_expression">
+                </label>
+            </div>
+            <div class="preview-line"><span data-i18n="preview">预览</span>：<span class="latex-preview">$Z$</span></div>
+        </div>
+    </template>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

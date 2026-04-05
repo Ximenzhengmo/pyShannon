@@ -3,7 +3,7 @@
 from probability import (
     self_information,
     mutual_information,
-    Entropy,
+    entropy,
     conditional_entropy,
     mean_contitional_mutial_information,
     mean_mutual_information,
@@ -45,9 +45,9 @@ if __name__ == "__main__":
     print("self_information([0.5, 0.25, 0.125]) =", self_information([0.5, 0.25, 0.125]))
     print("mutual_information(pX, pX|Y=y0) =", mutual_information(pX, pX_given_Y[:, 0]))
 
-    hx = Entropy(pX)
-    hy = Entropy(pY)
-    hxy = Entropy(pXY.reshape(-1))
+    hx = entropy(pX)
+    hy = entropy(pY)
+    hxy = entropy(pXY.reshape(-1))
     h_x_given_y = conditional_entropy(pX_given_Y.reshape(-1), pXY.reshape(-1))
     ixy = mean_mutual_information(pX, pY, pXY.reshape(-1))
     i_x_single_y = mean_contitional_mutial_information(pX, pX_given_Y[:, 0])

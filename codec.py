@@ -218,6 +218,74 @@ class HuffmanCodec:
             return ''.join(out) if sep == '' else sep.join(out)
         return out
 
+    def tolerant_decode(
+        self,
+        bitstream,
+        expected_length: Optional[int] = None,
+        sep: str = '',
+        return_list: bool = False,
+        fallback_symbol: Optional[Any] = None,
+    ):
+        """
+        Decode a bitstream with simple resynchronization on invalid paths.
+
+        This is useful when the encoded bitstream has passed through a noisy
+        channel and strict Huffman decoding would otherwise fail immediately.
+        The decoder resets to the root node on an invalid branch and continues
+        scanning the remaining bits.
+
+        Parameters:
+            bitstream: str or iterable of bits.
+            expected_length (int, optional): target number of decoded symbols.
+            sep (str, optional): join separator for string output.
+            return_list (bool, optional): if True, return list output.
+            fallback_symbol (optional): symbol used to pad the output when
+                `expected_length` is given but not enough symbols can be decoded.
+
+        Returns:
+            Decoded data in list or symbolic form.
+        """
+        if isinstance(bitstream, (list, tuple, np.ndarray)):
+            bitstream = ''.join(str(int(b)) for b in bitstream)
+        if not isinstance(bitstream, str):
+            raise TypeError("`bitstream` must be a str or iterable of bits.")
+        if expected_length is not None and expected_length < 0:
+            raise ValueError("`expected_length` must be non-negative.")
+
+        if fallback_symbol is None:
+            if self.probabilities:
+                fallback_symbol = max(self.probabilities.items(), key=lambda item: item[1])[0]
+            else:
+                fallback_symbol = next(iter(self.codes.keys()))
+
+        out = []
+        node = self.decode_tree
+        for bit in bitstream:
+            if bit not in ('0', '1'):
+                raise ValueError(f"Invalid bit `{bit}` in bitstream.")
+
+            if bit not in node:
+                node = self.decode_tree
+                if bit not in node:
+                    continue
+
+            node = node[bit]
+            if '_symbol' in node:
+                out.append(node['_symbol'])
+                node = self.decode_tree
+                if expected_length is not None and len(out) >= expected_length:
+                    break
+
+        if expected_length is not None and len(out) < expected_length:
+            out.extend([fallback_symbol] * (expected_length - len(out)))
+
+        if return_list:
+            return out
+
+        if all(isinstance(s, str) for s in out):
+            return ''.join(out) if sep == '' else sep.join(out)
+        return out
+
     def average_code_length(self) -> Optional[float]:
         if self.probabilities is None:
             return None
@@ -256,6 +324,25 @@ def huffman_decode(bitstream, codes, sep: str = '', return_list: bool = False):
     """Convenience decoding function from code table."""
     codec = HuffmanCodec(codes)
     return codec.decode(bitstream, sep=sep, return_list=return_list)
+
+
+def tolerant_huffman_decode(
+    bitstream,
+    codes,
+    expected_length: Optional[int] = None,
+    sep: str = '',
+    return_list: bool = False,
+    fallback_symbol: Optional[Any] = None,
+):
+    """Convenience tolerant decoding function from code table."""
+    codec = codes if isinstance(codes, HuffmanCodec) else HuffmanCodec(codes)
+    return codec.tolerant_decode(
+        bitstream,
+        expected_length=expected_length,
+        sep=sep,
+        return_list=return_list,
+        fallback_symbol=fallback_symbol,
+    )
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-from checker import ProbabilityChecker, ScaleoneChecker, AsarrayChecker
+﻿from checker import ProbabilityChecker, ScaleoneChecker, AsarrayChecker
 import numpy as np
 
 probChecker_lastaxis = ProbabilityChecker(axis=-1)
@@ -29,6 +29,52 @@ def _check_scaleone(value, param_name):
 
 def _check_probability(value, param_name):
     return probChecker_Allaxis.arg_checker(value, param_name=param_name)
+
+
+def safe_divide(numerator, denominator, fill_value=0.0):
+    r"""
+    Safely divide two arrays and fill undefined entries.
+
+    This helper is mainly intended for conditional distributions such as
+    `P(X|Y) = P(X,Y) / P(Y)`, where zero-probability conditioning events
+    would otherwise produce `nan`.
+
+    Parameters:
+        numerator: dividend array.
+        denominator: divisor array, broadcastable to `numerator`.
+        fill_value (float, optional): value used where denominator is 0.
+
+    Returns:
+        array_like: Safe division result.
+    """
+    numerator = _check_asarray(numerator, 'numerator')
+    denominator = _check_asarray(denominator, 'denominator')
+    numerator, denominator = np.broadcast_arrays(numerator, denominator)
+
+    out = np.full(numerator.shape, fill_value, dtype=numerator.dtype)
+    np.divide(numerator, denominator, out=out, where=denominator != 0)
+    return out
+
+
+def conditional_distribution(p_joint, p_condition, fill_value=0.0):
+    r"""
+    Build a conditional distribution with safe division.
+
+    Typical usage:
+    - `P(X|Y) = conditional_distribution(P(X,Y), P(Y))`
+    - `P(X|Y,Z) = conditional_distribution(P(X,Y,Z), P(Y,Z))`
+
+    The denominator only needs to be broadcastable to the joint array.
+
+    Parameters:
+        p_joint: joint distribution array.
+        p_condition: conditioning marginal array.
+        fill_value (float, optional): value used on zero-probability branches.
+
+    Returns:
+        array_like: Conditional distribution with undefined branches filled.
+    """
+    return safe_divide(p_joint, p_condition, fill_value=fill_value)
 
 
 def self_information(p):
@@ -63,7 +109,7 @@ def mutual_information(px, px_y):
     px_y = _check_scaleone(px_y, 'px_y')
     return _mutual_information_impl(px, px_y)
 
-def Entropy(p):
+def entropy(p):
     r"""
     Calculate the entropy of a probability distribution.
     - entropy     :  p(X) -> H(X) = -sum(p(X) * log2(p(X)))
@@ -73,10 +119,11 @@ def Entropy(p):
         p (array_like vector): Probability distribution.
 
     Returns:
-        float: Entropy of the distribution H(X) or H(XY).
+        float: entropy of the distribution H(X) or H(XY).
     """
     p = _check_probability(p, 'p')
     return _entropy_impl(p)
+
 
 def conditional_entropy(p, pXY):
     r"""
@@ -134,3 +181,5 @@ def mean_mutual_information(pX, pY, pXY):
 if __name__ == "__main__":
     pY = [0.5, 0.5]
     print(conditional_entropy(pY, pY))
+
+
