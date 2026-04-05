@@ -1,40 +1,20 @@
-[English Docs](./docs/en/README-en.md) | [中文文档](./docs/zh/README-zh.md)
+[中文文档](./docs/zh/README-zh.md) | [English Docs](./docs/en/README-en.md)
 
 # pyShannon
 
-`pyShannon` is a local information-theory toolkit centered on discrete distributions, Markov processes, channels, and source/channel coding.
 `pyShannon` 是一个面向离散信息论建模与仿真的本地 Python 工具库。
 
-## Scope
+当前项目主要覆盖：
 
-Current functionality includes:
+1. 离散概率分布上的信息量、熵、条件熵、互信息计算
+2. 无记忆链与高阶马尔可夫链
+3. 无记忆信源与马尔可夫信源
+4. 无记忆信道与马尔可夫信道
+5. 哈夫曼编码、严格解码与容错解码
+6. 示例脚本、题目求解脚本、实验重写脚本
+7. 本地 Flask 信息论计算器
 
-1. Probability-side information metrics: `self_information`, `entropy`, `conditional_entropy`, `mean_mutual_information`
-2. Discrete stochastic models: `MemoryLessChain`, `MarkovChain`
-3. Unified source wrapper: `Source`
-4. Unified channel wrapper: `Channel`
-5. Huffman coding/decoding: `HuffmanCodec`
-6. Tolerant Huffman decoding for noisy bitstreams: `HuffmanCodec.tolerant_decode(...)`
-7. Example scripts, worked problem solver, and experiment rewrites under `exp/`
-8. A local Flask-based web calculator under `web/`
-
-## Interface Notes
-
-The public entropy API in `probability.py` is:
-
-```python
-from probability import entropy
-```
-
-Use `entropy(...)` instead of the older `Entropy(...)` name.
-
-For conditional distributions with zero-probability branches, prefer:
-
-```python
-from probability import conditional_distribution, safe_divide
-```
-
-## Requirements
+## 环境
 
 ```text
 Python >= 3.11
@@ -42,67 +22,67 @@ NumPy >= 1.25
 Flask >= 3.1
 ```
 
-In the current local setup, the recommended conda environment is `pythontest`.
+当前本地开发环境建议直接使用 conda 环境 `pythontest`。
 
-## Quick Start
+## 快速开始
 
-Run the end-to-end example script:
+运行完整示例：
 
 ```bash
 python example.py
 ```
 
-Run the worked problem solver:
+运行题目求解脚本：
 
 ```bash
 python solve.py
 ```
 
-Run the local web calculator:
+运行本地网页计算器：
 
 ```bash
 conda run -n pythontest python web/app.py
 ```
 
-Then open:
+启动后打开：
 
 ```text
 http://127.0.0.1:5000
 ```
 
-## Experiments
+## 实验脚本
 
-Rewritten experiment scripts are under `exp/`:
+`exp/` 目录下已经按当前库接口重写了 4 份实验脚本：
 
 1. `experiment1_stationary_sources.py`
 2. `experiment2_cascade_channels.py`
 3. `experiment3_huffman_image_compression.py`
 4. `experiment4_reliability_vs_efficiency.py`
 
-These scripts are written against the current library interfaces rather than the older standalone implementations in the reports.
+这些脚本的目标是替换实验报告里原先那些独立实现、接口不一致的旧代码。
 
-## Documentation
+## 文档
 
-Detailed bilingual documentation is in:
+详细文档见：
 
-1. English: [docs/en/README-en.md](./docs/en/README-en.md)
-2. 中文: [docs/zh/README-zh.md](./docs/zh/README-zh.md)
+1. 中文：[docs/zh/README-zh.md](./docs/zh/README-zh.md)
+2. 英文：[docs/en/README-en.md](./docs/en/README-en.md)
 
-Those documents include:
+`docs/` 中包含：
 
-1. Theory notes with LaTeX formulas
-2. Python-side usage notes
-3. Web calculator usage instructions
-4. Current module overview
+1. 理论公式说明
+2. Python 侧调用方式
+3. 网页端使用说明
+4. 当前模块与目录结构说明
 
-## Project Layout
+## 目录索引
 
-1. `probability.py`: information metrics and safe conditional-distribution helpers
-2. `chain.py`: `MemoryLessChain`, `MarkovChain`
-3. `source.py`: unified source wrapper
-4. `channel.py`: unified channel wrapper
-5. `codec.py`: Huffman tree, encoding, strict decoding, tolerant decoding
-6. `example.py`: end-to-end examples
-7. `solve.py`: worked probability exercise
-8. `web/`: Flask app and front-end assets
-9. `exp/`: experiment scripts and reports
+1. `probability.py`：信息量、熵、条件熵、互信息、安全条件分布工具
+2. `chain.py`：`MemoryLessChain`、`MarkovChain`
+3. `source.py`：统一 `Source` 包装类
+4. `channel.py`：统一 `Channel` 包装类
+5. `codec.py`：哈夫曼编码、严格解码、容错解码
+6. `example.py`：端到端功能示例
+7. `solve.py`：题目求解脚本
+8. `web/`：Flask 应用与前端资源
+9. `exp/`：实验报告与重写后的实验脚本
